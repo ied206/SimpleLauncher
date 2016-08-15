@@ -1,0 +1,32 @@
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include <windows.h>
+#include <commctrl.h>
+#include <richedit.h>
+#include "resource.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+VS_VERSION_INFO VERSIONINFO
+    FILEVERSION    1,1,0,0
+    PRODUCTVERSION 1,1,0,0
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "040904b0"
+        {
+            VALUE "CompanyName",        "Joveler\0"
+            VALUE "FileDescription",    "SimpleLauncher\0"
+            VALUE "FileVersion",        "1.1.0.0\0"
+            VALUE "OriginalFilename",   "SimpleLauncher.exe\0"
+            VALUE "ProductName",        "SimpleLauncher\0"
+            VALUE "ProductVersion",     "1.1\0"
+        }
+    }
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x409, 1200
+    }
+}
+IDI_MAINICON       ICON           ".\\Calc.ico"
+CREATEPROCESS_MANIFEST_RESOURCE_ID       RT_MANIFEST    ".\\Resource.manifest"
+

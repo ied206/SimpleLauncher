@@ -1,3 +1,12 @@
+# CodeBlocks
+*.depend
+*.layout
+bin/
+obj/
+
+# SimpleLauncher
+*.ini
+
 # Object files
 *.o
 *.ko
