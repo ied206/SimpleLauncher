@@ -15,6 +15,8 @@
 #define ERR_UNSUPPORTED_ENCODING		4
 #define ERR_UNKNOWN_ENCODING			5
 #define ERR_MULTIBYTETOWIDECHAR_FAIL	6
+#define ERR_MALLOC_FAIL					7
+#define ERR_ENV_NAME_TOO_LONG			8
 
 #define ENCODING_ANSI		0
 #define ENCODING_UTF16_LE	1
@@ -44,12 +46,14 @@
 wchar_t errMsg[MAX_MSG_BUF] = {0};
 int DetectBOM(uint8_t* buf);
 int ConvertToUTF16(uint8_t* src, size_t srcLen, wchar_t* dest, size_t destMaxLen, int encoding);
+size_t ExpandLaunchPath(wchar_t* srcBuf, wchar_t* destBuf, size_t destMaxLen);
 
 int main(int argc, char* argv[])
 {
 	HANDLE hFile = NULL;
 	uint8_t rawBuf[MAX_BUF_LEN_EX] = {0};
 	wchar_t convBuf[MAX_BUF_LEN_EX] = {0};
+	wchar_t expandBuf[MAX_BUF_LEN_EX] = {0};
 	wchar_t fileName[MAX_PATH_LEN_EX] = {0};
 	uint32_t readByte = 0;
 	int encoding = 0;
@@ -86,10 +90,12 @@ int main(int argc, char* argv[])
 
 	// Detect Encoding
 	encoding = DetectBOM(rawBuf);
-	ConvertToUTF16(rawBuf, readByte, convBuf, MAX_BUF_LEN_EX, encoding);
-
+	// Convert to UTF-16-LE
+	ConvertToUTF16(rawBuf, readByte, convBuf, MAX_BUF_LEN_EX * sizeof(wchar_t), encoding);
+	// Expand Environment Variables
+	ExpandLaunchPath(convBuf, expandBuf, MAX_BUF_LEN_EX * sizeof(wchar_t));
 	// Launch
-	ShellExecuteW(NULL, L"open", (LPCWSTR) convBuf, NULL, NULL, SW_SHOW);
+	ShellExecuteW(NULL, L"open", (LPCWSTR) expandBuf, NULL, NULL, SW_SHOW);
 	return 0;
 }
 
@@ -108,14 +114,14 @@ int DetectBOM(uint8_t* buf)
 		return ENCODING_ANSI;
 }
 
-int ConvertToUTF16(uint8_t* src, size_t srcLen, wchar_t* dest, size_t destMaxLen, int encoding)
+int ConvertToUTF16(uint8_t* srcBuf, size_t srcLen, wchar_t* destBuf, size_t destMaxLen, int encoding)
 {
 	int destLen = 0;
 
 	switch (encoding)
 	{
 	case ENCODING_ANSI:
-		destLen = MultiByteToWideChar(CP_ACP, 0, (char*) src, srcLen, dest, destMaxLen);
+		destLen = MultiByteToWideChar(CP_ACP, 0, (char*) srcBuf, srcLen, destBuf, destMaxLen);
 		if (destLen == 0)
 		{
 			StringCchPrintfW((WCHAR*) errMsg, MAX_MSG_BUF, L"[ERR] MultiByteToWideChar() failed!\nError Code : %lu\n\n", GetLastError());
@@ -125,7 +131,7 @@ int ConvertToUTF16(uint8_t* src, size_t srcLen, wchar_t* dest, size_t destMaxLen
 		}
 		break;
 	case ENCODING_UTF16_LE:
-		memcpy(dest, src+2, srcLen-2); // 2B for UTF16 BOM
+		memcpy(destBuf, srcBuf+2, srcLen-2); // 2B for UTF16 BOM
 		destLen = srcLen - 2;
 		break;
 	case ENCODING_UTF16_BE:
@@ -135,7 +141,7 @@ int ConvertToUTF16(uint8_t* src, size_t srcLen, wchar_t* dest, size_t destMaxLen
 		exit(ERR_UNSUPPORTED_ENCODING);
 		break;
 	case ENCODING_UTF8:
-		destLen = MultiByteToWideChar(CP_UTF8, 0, (char*) (src+3), srcLen-3, dest, destMaxLen); // 3B for UTF-8 BOM
+		destLen = MultiByteToWideChar(CP_UTF8, 0, (char*) (srcBuf+3), srcLen-3, destBuf, destMaxLen); // 3B for UTF-8 BOM
 		if (destLen == 0)
 		{
 			StringCchPrintfW((WCHAR*) errMsg, MAX_MSG_BUF, L"[ERR] MultiByteToWideChar() failed!\nError Code : %lu\n\n", GetLastError());
@@ -154,3 +160,20 @@ int ConvertToUTF16(uint8_t* src, size_t srcLen, wchar_t* dest, size_t destMaxLen
 
 	return destLen;
 }
+
+size_t ExpandLaunchPath(wchar_t* srcBuf, wchar_t* destBuf, size_t destMaxLen)
+{
+	wchar_t* search = NULL;
+
+	// 1. Interpret %EnvVar% from srcBuf to tmpBuf
+	ExpandEnvironmentStringsW(srcBuf, destBuf, destMaxLen);
+
+	// 2. Need only first line, just before \r\n
+	search = StrStrW(destBuf, L"\r\n");
+	if (search) // \r\n exists
+		search[0] = L'\0';
+
+	// Return buffer length of destBuf
+	return wcslen(destBuf) * sizeof(wchar_t);
+}
+
