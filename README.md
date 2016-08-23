@@ -16,7 +16,7 @@ SimpleLauncher can understand environment variable just like cmd shell.
 
 ## Compile
 ### Before Compile
-Be sure to adjust `SimpleLauncher.c`'s `LAUNCH_INI` macro's value to match your purpose.
+Be sure to adjust `SimpleLauncher.c`'s `LAUNCH_INI` macro's value to match your purpose.  
 You can also replace `rc/SimpleLauncher.ico` with your own icon file.
 
 ### Compiler
