@@ -27,6 +27,6 @@ VS_VERSION_INFO VERSIONINFO
         VALUE "Translation", 0x409, 1200
     }
 }
-IDI_MAINICON       ICON           ".\\Calc.ico"
+IDI_MAINICON       ICON           ".\\SimpleLauncher.ico"
 CREATEPROCESS_MANIFEST_RESOURCE_ID       RT_MANIFEST    ".\\Resource.manifest"
 

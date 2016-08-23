@@ -104,9 +104,12 @@ int main(int argc, char* argv[])
 	ConvertToUTF16(rawBuf, readByte, convBuf, MAX_BUF_LEN_EX * sizeof(wchar_t), encoding);
 	// Expand Environment Variables
 	ExpandLaunchPath(convBuf, expandBuf, MAX_BUF_LEN_EX * sizeof(wchar_t));
-	// Launch and return (ShellExecuteW return TRUE at success, so reverse)
-	hRes = (int) ShellExecuteW(NULL, L"open", (LPCWSTR) expandBuf, (LPCWSTR) GetParameters(), NULL, SW_SHOWNORMAL);
+	// Launch with ShellExecute API
+	// According to MSDN, ShellExecute's return value can be casted only to int.
+	// size_t casting is used to evade gcc's [-Wpointer-to-int-cast] warning.
+	hRes = (int) ((size_t) ShellExecuteW(NULL, L"open", (LPCWSTR) expandBuf, (LPCWSTR) GetParameters(), NULL, SW_SHOWNORMAL));
 
+	// Return and Exit
 	if (32 < hRes)
 		return 0;
 	else
