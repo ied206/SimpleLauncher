@@ -1,7 +1,13 @@
-/*  Written By ied206 (aka Joveler)
+/* SimpleLauncher v1.1
+ *   Very Simple Executable Launcher for Win32
+ *   Useful in PE envrionment which contains minimum dependency
+ *
+ *  Written By ied206 (aka Joveler)
  *    https://github.com/ied206
- *  Launches program and exit
- *  You can change LAUNCH_INI macro to set ini file name
+ *    https://joveler.kr
+ *
+ *  Launches program and exit.
+ *  You can change LAUNCH_INI macro to set ini file name.
  *
  *  Distributed under MIT License.
  */
@@ -23,6 +29,7 @@
 #define ENCODING_UTF16_BE	2
 #define ENCODING_UTF8		3
 
+// You can customize LAUNCH_INI value
 #define LAUNCH_INI		L"PrecCalcPath.ini"
 #define MAX_PATH_LEN_EX	32768
 #define MAX_BUF_LEN_EX	(32768 * 4)
@@ -47,16 +54,19 @@ wchar_t errMsg[MAX_MSG_BUF] = {0};
 int DetectBOM(uint8_t* buf);
 int ConvertToUTF16(uint8_t* src, size_t srcLen, wchar_t* dest, size_t destMaxLen, int encoding);
 size_t ExpandLaunchPath(wchar_t* srcBuf, wchar_t* destBuf, size_t destMaxLen);
+wchar_t* GetParameters();
 
 int main(int argc, char* argv[])
 {
 	HANDLE hFile = NULL;
+	int hRes = 0;
 	uint8_t rawBuf[MAX_BUF_LEN_EX] = {0};
 	wchar_t convBuf[MAX_BUF_LEN_EX] = {0};
 	wchar_t expandBuf[MAX_BUF_LEN_EX] = {0};
 	wchar_t fileName[MAX_PATH_LEN_EX] = {0};
 	uint32_t readByte = 0;
 	int encoding = 0;
+
 
 	// Get Path Name
 	GetModuleFileNameW(NULL, fileName, MAX_PATH_LEN_EX);
@@ -94,10 +104,16 @@ int main(int argc, char* argv[])
 	ConvertToUTF16(rawBuf, readByte, convBuf, MAX_BUF_LEN_EX * sizeof(wchar_t), encoding);
 	// Expand Environment Variables
 	ExpandLaunchPath(convBuf, expandBuf, MAX_BUF_LEN_EX * sizeof(wchar_t));
-	// Launch
-	ShellExecuteW(NULL, L"open", (LPCWSTR) expandBuf, NULL, NULL, SW_SHOW);
-	return 0;
+	// Launch and return (ShellExecuteW return TRUE at success, so reverse)
+	hRes = (int) ShellExecuteW(NULL, L"open", (LPCWSTR) expandBuf, (LPCWSTR) GetParameters(), NULL, SW_SHOWNORMAL);
+
+	if (32 < hRes)
+		return 0;
+	else
+		return 1;
 }
+
+
 
 // 0xEF,0xBB,0xBF - UTF8
 // 0xFE,0xFF - UTF-16 BE
@@ -175,5 +191,50 @@ size_t ExpandLaunchPath(wchar_t* srcBuf, wchar_t* destBuf, size_t destMaxLen)
 
 	// Return buffer length of destBuf
 	return wcslen(destBuf) * sizeof(wchar_t);
+}
+
+// Get Command line arguments and catch start point of argv[1]
+wchar_t* GetParameters()
+{
+	wchar_t* cmdRawLine = GetCommandLineW();
+	wchar_t* cmdParam = NULL;
+
+	// Case 1 : Simplest form of 'single param', no space
+	// Ex) calc.exe
+	if (StrChrW(cmdRawLine, L' ') == NULL)
+		cmdParam = NULL;
+	else // It is 'multiple params' OR 'single param with quotes'
+	{
+		if (StrChrW(cmdRawLine, L'\"') == NULL)
+			// Case 2 : 'multiple params' without quotes
+			// Ex) notepad.exe Notepad-UTF8.txt
+			cmdParam = StrChrW(cmdRawLine, L' ');
+		else
+		{
+			// Detect if first parameter has quotes
+			if (StrChrW(cmdRawLine, L'\"') == cmdRawLine)
+			{
+				wchar_t* cmdLeftQuote = NULL; // Start of first parameter
+				wchar_t* cmdRightQuote = NULL; // End of first parameter
+				cmdLeftQuote = StrChrW(cmdRawLine, L'\"');
+				cmdRightQuote = StrChrW(cmdLeftQuote+1, L'\"');
+
+				// Case 3 : Single param with quotes on first param
+				// Ex) "Simple Browser.exe"
+				if (StrChrW(cmdRightQuote+1, L' ') == NULL)
+					cmdParam = NULL;
+				// Case 4 : Multiple param with quotes on first param
+				// Ex) "Simple Browser.exe" joveler.kr
+				else
+					cmdParam = StrChrW(cmdRightQuote+1, L' '); // Spaces between cmdLeftQuote and cmdRightQuote must be ignored
+			}
+			// Case 5 : Multiple param, but no quotes on first param
+			// Ex) notepad.exe "Notepad UTF8.txt"
+			else
+				cmdParam = StrChrW(cmdRawLine, L' ');
+		}
+	}
+
+	return cmdParam;
 }
 
